@@ -6,3 +6,69 @@
  * Performance hacks which are too hacky to hack into core.
  */
 
+/**
+ * Implements hook_menu_alter().
+ */
+function performance_hacks_menu_alter(&$items) {
+  // Use a custom callback for node/% to bypass node_tag_new().
+  $items['node/%node']['page callback'] = 'performance_hacks_node_show';
+
+  // Replace _node_revision_access() with a callback that doesn't do a COUNT()
+  // query on the node table. Will show revisions tab to all users with access
+  // even if there's only one revision.
+  // @see http://drupal.org/node/808739
+  $items['node/%node/revisions']['access callback'] = '_performance_hacks_node_revision_access';
+}
+
+/**
+ * Page callback to display a node.
+ *
+ * node_tag_new() causes an SQL merge query on every page. This will cause
+ * new/updated marks not to work.
+ */
+function performance_hacks_node_show($node, $message = FALSE) {
+  if ($message) {
+    drupal_set_title(t('Revision of %title from %date', array('%title' => $node->title, '%date' => format_date($node->revision_timestamp))), PASS_THROUGH);
+  }
+
+  // For markup consistency with other pages, use node_view_multiple() rather
+  // than node_view().
+  return node_view_multiple(array($node->nid => $node), 'full');
+}
+
+/**
+ * Copy of _node_revision_access() which skips doing a COUNT().
+ */
+function _performance_hacks_node_revision_access($node, $op = 'view') {
+  $access = &drupal_static(__FUNCTION__, array());
+  if (!isset($access[$node->vid])) {
+    // To save additional calls to the database, return early if the user
+    // doesn't have the required permissions.
+    $map = array('view' => 'view revisions', 'update' => 'revert revisions', 'delete' => 'delete revisions');
+    if (isset($map[$op]) && (!user_access($map[$op]) && !user_access('administer nodes'))) {
+      $access[$node->vid] = FALSE;
+      return FALSE;
+    }
+
+    $node_current_revision = node_load($node->nid);
+    $is_current_revision = $node_current_revision->vid == $node->vid;
+
+    // There should be at least two revisions. If the vid of the given node
+    // and the vid of the current revision differs, then we already have two
+    // different revisions so there is no need for a separate database check.
+    // Also, if you try to revert to or delete the current revision, that's
+    // not good.
+    if ($is_current_revision && ($op == 'update' || $op == 'delete')) {
+      $access[$node->vid] = FALSE;
+    }
+    elseif (user_access('administer nodes')) {
+      $access[$node->vid] = TRUE;
+    }
+    else {
+      // First check the access to the current revision and finally, if the
+      // node passed in is not the current revision then access to that, too.
+      $access[$node->vid] = node_access($op, $node_current_revision) && ($is_current_revision || node_access($op, $node));
+    }
+  }
+  return $access[$node->vid];
+}
