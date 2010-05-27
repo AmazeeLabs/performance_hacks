@@ -1,0 +1,8 @@
+<?php
+// $Id$
+
+/**
+ * @file
+ * Performance hacks which are too hacky to hack into core.
+ */
+
