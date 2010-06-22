@@ -21,6 +21,21 @@ function performance_hacks_menu_alter(&$items) {
 }
 
 /**
+ * Implements hook_module_implements_alter().
+ */
+function performance_hacks_module_implements_alter(&$implementations, $hook) {
+
+  // node_field_display_module_alter() disables all labels on all fields
+  // when the view mode is 'search_index'. If you set display modes for
+  // this view mode by hand, then the hook isn't needed. Since this
+  // may be called hundreds of times on some pages, it's worth disabling it.
+  // @see http://drupal.org/node/834278
+  if ($hook == 'field_display_node_alter') {
+    unset($implementations['node']);
+  }
+}
+
+/**
  * Page callback to display a node.
  *
  * node_tag_new() causes an SQL merge query on every page. This will cause
