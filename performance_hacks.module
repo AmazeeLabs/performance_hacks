@@ -59,7 +59,7 @@ function performance_hacks_node_show($node, $message = FALSE) {
  *
  * @see @node_view_multiple().
  */
-function performance_hacks_node_view_multiple($node, $view_mode = 'teaser', $weight = 0) {
+function performance_hacks_node_view_multiple($nodes, $view_mode = 'teaser', $weight = 0) {
   // No changes from node_view_multiple except for swapping out node_view()
   // with our own version. The idea behind render caching each node teaser
   // individually is to avoid having to clear the cache when new content is
