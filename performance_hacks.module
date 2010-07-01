@@ -35,6 +35,22 @@ function performance_hacks_module_implements_alter(&$implementations, $hook) {
 }
 
 /**
+ * Implements hook_node_update().
+ */
+function performance_hacks_node_update($node) {
+  // When a node is updated, clear cache for all rendered versions.
+  cache_clear_all("node:render:$node->nid", 'cache_block', TRUE);
+}
+
+/**
+ * Implements hook_node_delete().
+ */
+function performance_hacks_node_delete($node) {
+  // Clean up cache entries for this node.
+  cache_clear_all("node:render:$node->nid", 'cache_block', TRUE);
+}
+
+/**
  * Page callback to display a node.
  *
  * node_tag_new() causes an SQL merge query on every page. This will cause
@@ -100,7 +116,7 @@ function  performance_hacks_replace_node_view($node, $view_mode = 'full') {
     '#pre_render' => array('_performance_hacks_node_build_content'),
     '#cache' => array(
        'cid' => $cid,
-       'bin' => 'cache_page',
+       'bin' => 'cache_block',
        'expire' => REQUEST_TIME + $expire,
     ),
   );
