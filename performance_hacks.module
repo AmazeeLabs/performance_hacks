@@ -100,12 +100,23 @@ function performance_hacks_node_show($node, $message = FALSE) {
  * @see @node_view_multiple().
  */
 function performance_hacks_node_view_multiple($nodes, $view_mode = 'teaser', $weight = 0) {
-  // No changes from node_view_multiple except for swapping out node_view()
-  // with our own version. The idea behind render caching each node teaser
-  // individually is to avoid having to clear the cache when new content is
-  // posted, instead we can clear it only when nodes are updated (just about).
-  field_attach_prepare_view('node', $nodes, $view_mode);
-  entity_prepare_view('node', $nodes);
+
+  // If there's a cache miss, we want the prepare view stage to run
+  // in 'multiple' mode. If all nodes are a cache hit, it doesn't need to
+  // run at all. To get around this, check if we have a full cache hit before
+  // running the two functions.
+  // @todo: consider trying to keep a static of cache hits so we don't have
+  // to run cache_get_multiple() and cache_get() separately. This requires
+  // custom caching instead of drupal_render().
+  $cids = array();
+  foreach ($nodes as $node) {
+    $cids[] = 'node:render:' . $node->nid . ':' . $view_mode . ':' . $GLOBALS['user']->uid;
+  }
+  $cached = cache_get_multiple($cids, 'cache_block');
+  if (count($cached) != count($nodes)) {
+    field_attach_prepare_view('node', $nodes, $view_mode);
+    entity_prepare_view('node', $nodes);
+  }
   $build = array();
   foreach ($nodes as $node) {
     $build['nodes'][$node->nid] = performance_hacks_replace_node_view($node, $view_mode);
