@@ -137,7 +137,7 @@ function  performance_hacks_replace_node_view($node, $view_mode = 'full') {
   // @todo: add language.
   $custom = variable_get('performance_hacks_custom_cache_key', '');
 
-  $cid = 'node:render:' . $node->nid . ':' . $view_mode . ':' . $GLOBALS['user']->uid . ':' $custom;
+  $cid = 'node:render:' . $node->nid . ':' . $view_mode . ':' . $GLOBALS['user']->uid . ':' . $custom;
 
   // Cache for a maximum of three days, updates to users, taxonomy terms,
   // theming, or other things which affect the rendered node output without
