@@ -109,8 +109,9 @@ function performance_hacks_node_view_multiple($nodes, $view_mode = 'teaser', $we
   // to run cache_get_multiple() and cache_get() separately. This requires
   // custom caching instead of drupal_render().
   $cids = array();
+  $custom = variable_get('performance_hacks_custom_cache_key', '');
   foreach ($nodes as $node) {
-    $cids[] = 'node:render:' . $node->nid . ':' . $view_mode . ':' . $GLOBALS['user']->uid;
+    $cids[] = 'node:render:' . $node->nid . ':' . $view_mode . ':' . $GLOBALS['user']->uid . ':' . $custom;
   }
   $cached = cache_get_multiple($cids, 'cache_block');
   if (count($cached) != count($nodes)) {
