@@ -1,0 +1,26 @@
+<?php
+// $Id$
+
+/**
+ * @file
+ * Schema, install and update functions for performance_hacks.module.
+ */
+
+/**
+ * Implements hook_schema().
+ */
+function performance_hacks_schema() {
+  $cache_schema = drupal_get_schema_unprocessed('system', 'cache');
+  $schema["cache_performance_hacks"] = $cache_schema;
+  $schema["cache_performance_hacks"]['description'] = "Cache table used by performance hacks module, mainly render caching";
+  return $schema;
+}
+
+/**
+ * Add cache_performance_hacks table.
+ */
+function performance_hacks_update_7000() {
+  $cache_schema = drupal_get_schema_unprocessed('system', 'cache');
+  $cache_schema['description'] = "Cache table used by performance hacks module, mainly render caching";
+  db_create_table('cache_performance_hacks', $cache_schema);
+}

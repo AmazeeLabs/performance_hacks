@@ -39,7 +39,7 @@ function performance_hacks_module_implements_alter(&$implementations, $hook) {
  */
 function performance_hacks_node_update($node) {
   // When a node is updated, clear cache for all rendered versions.
-  cache_clear_all("node:render:$node->nid", 'cache_block', TRUE);
+  cache_clear_all("node:render:$node->nid", 'cache_performance_hacks', TRUE);
 }
 
 /**
@@ -47,7 +47,7 @@ function performance_hacks_node_update($node) {
  */
 function performance_hacks_node_delete($node) {
   // Clean up cache entries for this node.
-  cache_clear_all("node:render:$node->nid", 'cache_block', TRUE);
+  cache_clear_all("node:render:$node->nid", 'cache_performance_hacks', TRUE);
 }
 
 /**
@@ -57,21 +57,21 @@ function performance_hacks_comment_insert($comment) {
   // Clear the render cache for nodes when comments are added.
   // Only clear full view since this is where comments are usually
   // displayed.
-  cache_clear_all("node:render:$comment->nid:full", 'cache_block', TRUE);
+  cache_clear_all("node:render:$comment->nid:full", 'cache_performance_hacks', TRUE);
 }
 
 /**
  * Implements hook_comment_update().
  */
 function performance_hacks_comment_update($comment) {
-  cache_clear_all("node:render:$comment->nid:full", 'cache_block', TRUE);
+  cache_clear_all("node:render:$comment->nid:full", 'cache_performance_hacks', TRUE);
 }
 
 /**
  * Implements hook_comment_delete().
  */
 function performance_hacks_comment_delete($comment) {
-  cache_clear_all("node:render:$comment->nid:full", 'cache_block', TRUE);
+  cache_clear_all("node:render:$comment->nid:full", 'cache_performance_hacks', TRUE);
 }
 
 /**
@@ -112,7 +112,7 @@ function performance_hacks_node_view_multiple($nodes, $view_mode = 'teaser', $we
   foreach ($nodes as $node) {
     $cids[] = _performance_hacks_node_render_cache_key($node, $view_mode);
   }
-  $cached = cache_get_multiple($cids, 'cache_block');
+  $cached = cache_get_multiple($cids, 'cache_performance_hacks');
   if (count($cached) != count($nodes)) {
     field_attach_prepare_view('node', $nodes, $view_mode);
     entity_prepare_view('node', $nodes);
@@ -149,7 +149,7 @@ function  performance_hacks_replace_node_view($node, $view_mode = 'full') {
     '#pre_render' => array('_performance_hacks_node_build_content'),
     '#cache' => array(
        'cid' => $cid,
-       'bin' => 'cache_block',
+       'bin' => 'cache_performance_hacks',
        'expire' => REQUEST_TIME + $expire,
     ),
   );

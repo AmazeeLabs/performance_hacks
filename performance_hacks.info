@@ -5,3 +5,4 @@ description = Performance hacks which are too hacky to hack into core.
 core = 7.x
 
 files[] = performance_hacks.module
+files[] = performance_hacks.install
