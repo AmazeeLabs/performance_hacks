@@ -186,7 +186,7 @@ function _performance_hacks_node_render_cache_key($node, $view_mode) {
 
   // Add any query parameters to account for paging etc..
   $get = 'g.';
-  foreach (drupal_get_query_paramaters() as $key => $param) {
+  foreach (drupal_get_query_parameters() as $key => $param) {
     $get .= "$key.$param";
   }
   $cid .= $get;
