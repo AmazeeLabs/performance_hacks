@@ -245,7 +245,16 @@ function _performance_hacks_node_build_content($element) {
   // Allow modules to make their own additions to the node.
   module_invoke_all('node_view', $node, $view_mode);
 
-  $element += $node->content;
+  // merge $node->content into $element
+  foreach (element_children($node->content) as $child) {
+    if (isset($element[$child])) {
+      $element[$child] = array_merge($element[$child], $node->content[$child]);
+    }
+    else {
+      $element[$child] = $node->content[$child];
+    }
+  }
+
   unset($node->content);
 
   // Run hook_node_view_alter() here instead of in node_view() because this
