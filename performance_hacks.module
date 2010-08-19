@@ -197,11 +197,6 @@ function _performance_hacks_node_render_cache_key($node, $view_mode) {
   // Cache per role.
   $cid .= 'r.' . implode(',', array_keys($user->roles));
 
-  // Cache nodes per user, allow this to be disabled via a variable.
-  if (variable_get('performance_hacks_cache_per_user', TRUE)) {
-    $cid .= 'u.' . $user->uid;
-  }
-
   return $cid;
 }
 
