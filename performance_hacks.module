@@ -21,6 +21,13 @@ function performance_hacks_menu_alter(&$items) {
 }
 
 /**
+ *  Implements hook_flush_caches().
+ */
+function performance_hacks_flush_caches() {
+  return array('cache_performance_hacks');
+}
+
+/**
  * Implements hook_module_implements_alter().
  */
 function performance_hacks_module_implements_alter(&$implementations, $hook) {
