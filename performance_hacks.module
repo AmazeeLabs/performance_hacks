@@ -46,7 +46,11 @@ function performance_hacks_module_implements_alter(&$implementations, $hook) {
  */
 function performance_hacks_node_update($node) {
   // When a node is updated, clear cache for all rendered versions.
-  cache_clear_all("node:render:$node->nid", 'cache_performance_hacks', TRUE);
+  // Avoid this during migrations for performance - cache will need to be
+  // flushed manually.
+  if (!empty($node->migrate)) {
+    cache_clear_all("node:render:$node->nid", 'cache_performance_hacks', TRUE);
+  }
 }
 
 /**
