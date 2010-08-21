@@ -76,7 +76,7 @@ function performance_hacks_comment_update($comment) {
  * Implements hook_comment_delete().
  */
 function performance_hacks_comment_delete($comment) {
-  performance_hacks_clear_node_render_cache($node->nid);
+  performance_hacks_clear_node_render_cache($comment->nid);
 }
 
 /**
