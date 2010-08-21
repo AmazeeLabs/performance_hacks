@@ -59,9 +59,6 @@ function performance_hacks_node_delete($node) {
  * Implements hook_comment_insert().
  */
 function performance_hacks_comment_insert($comment) {
-  // Clear the render cache for nodes when comments are added.
-  // Only clear full view since this is where comments are usually
-  // displayed.
   performance_hacks_clear_node_render_cache($comment->nid);
 }
 
