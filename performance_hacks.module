@@ -210,7 +210,7 @@ function performance_hacks_node_render_is_cacheable($node, $allow_caching = NULL
 function performance_hacks_clear_node_render_cache($nid) {
   $keys = array();
   $entity_info = entity_get_info();
-  $view_modes = array_keys($info['node']['view modes']);
+  $view_modes = array_keys($entity_info['node']['view modes']);
 
   // Create a cache key for each view mode, and for whether the user is
   // authenticated or not.
