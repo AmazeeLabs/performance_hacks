@@ -69,7 +69,7 @@ function performance_hacks_comment_insert($comment) {
  * Implements hook_comment_update().
  */
 function performance_hacks_comment_update($comment) {
-  performance_hacks_clear_node_render_cache($node->nid);
+  performance_hacks_clear_node_render_cache($comment->nid);
 }
 
 /**
