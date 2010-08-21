@@ -45,20 +45,14 @@ function performance_hacks_module_implements_alter(&$implementations, $hook) {
  * Implements hook_node_update().
  */
 function performance_hacks_node_update($node) {
-  // When a node is updated, clear cache for all rendered versions.
-  // Avoid this during migrations for performance - cache will need to be
-  // flushed manually.
-  if (!empty($node->migrate)) {
-    cache_clear_all("node:render:$node->nid", 'cache_performance_hacks', TRUE);
-  }
+  performance_hacks_clear_node_render_cache($node->nid);
 }
 
 /**
  * Implements hook_node_delete().
  */
 function performance_hacks_node_delete($node) {
-  // Clean up cache entries for this node.
-  cache_clear_all("node:render:$node->nid", 'cache_performance_hacks', TRUE);
+  performance_hacks_clear_node_render_cache($node->nid);
 }
 
 /**
@@ -68,21 +62,21 @@ function performance_hacks_comment_insert($comment) {
   // Clear the render cache for nodes when comments are added.
   // Only clear full view since this is where comments are usually
   // displayed.
-  cache_clear_all("node:render:$comment->nid:full", 'cache_performance_hacks', TRUE);
+  performance_hacks_clear_node_render_cache($comment->nid);
 }
 
 /**
  * Implements hook_comment_update().
  */
 function performance_hacks_comment_update($comment) {
-  cache_clear_all("node:render:$comment->nid:full", 'cache_performance_hacks', TRUE);
+  performance_hacks_clear_node_render_cache($node->nid);
 }
 
 /**
  * Implements hook_comment_delete().
  */
 function performance_hacks_comment_delete($comment) {
-  cache_clear_all("node:render:$comment->nid:full", 'cache_performance_hacks', TRUE);
+  performance_hacks_clear_node_render_cache($node->nid);
 }
 
 /**
@@ -112,19 +106,13 @@ function performance_hacks_node_show($node, $message = FALSE) {
  */
 function performance_hacks_node_view_multiple($nodes, $view_mode = 'teaser', $weight = 0) {
 
-  // If there's a cache miss, we want the prepare view stage to run
-  // in 'multiple' mode. If all nodes are a cache hit, it doesn't need to
-  // run at all. To get around this, check if we have a full cache hit before
-  // running the two functions.
-  // @todo: consider trying to keep a static of cache hits so we don't have
-  // to run cache_get_multiple() and cache_get() separately. This requires
-  // custom caching instead of drupal_render().
-  $cids = array();
-  foreach ($nodes as $node) {
-    $cids[] = _performance_hacks_node_render_cache_key($node, $view_mode);
-  }
-  $cached = cache_get_multiple($cids, 'cache_performance_hacks');
-  if (count($cached) != count($nodes)) {
+  // If all nodes are cached, running the prepare view hooks is pointless.
+  // However if any nodes aren't cached and we're rendering a list of nodes,
+  // it's better for them to run in multiple mode. By not running these hooks
+  // for only one node, we skip them entirely on cached single node views.
+  // For multiple views, we assume that popular pages with a high cache hit
+  // rate also have frequently updated content anyway.
+  if (count($nodes) > 1) {
     field_attach_prepare_view('node', $nodes, $view_mode);
     entity_prepare_view('node', $nodes);
   }
@@ -158,12 +146,14 @@ function performance_hacks_replace_node_view($node, $view_mode = 'full') {
     '#node' => $node,
     '#view_mode' => $view_mode,
     '#pre_render' => array('_performance_hacks_node_build_content'),
-    '#cache' => array(
-       'cid' => $cid,
-       'bin' => 'cache_performance_hacks',
-       'expire' => REQUEST_TIME + $expire,
-    ),
   );
+  if (performance_hacks_node_render_is_cacheable($node)) {
+    $build['#cache'] = array(
+      'cid' => $cid,
+      'bin' => 'cache_performance_hacks',
+      'expire' => REQUEST_TIME + $expire,
+    );
+  }
   // Add contextual links for this node, except when the node is already being
   // displayed on its own page. Modules may alter this behavior (for example,
   // to restrict contextual links to certain view modes) by implementing
@@ -189,26 +179,50 @@ function performance_hacks_replace_node_view($node, $view_mode = 'full') {
 function _performance_hacks_node_render_cache_key($node, $view_mode) {
   global $user;
 
-  $cid = "node:render:$node->nid:$view_mode";
-
-  // Allow modules to add custom cache keys based on arbitary parameters.
-  $keys = module_invoke_all('performance_hacks_custom_cache_key', $node, $view_mode);
-  $cid .= 'c.' . implode(':', $keys);
-
-  // Add any query parameters to account for paging etc..
-  $get = 'g.';
-  foreach (drupal_get_query_parameters() as $key => $param) {
-    $get .= "$key.$param";
-  }
-  $cid .= $get;
-
-  // Cache separately for the node owner.
-  $cid .= 'o.' . (int) $node->uid == $user->uid;
-
-  // Cache per role.
-  $cid .= 'r.' . implode(',', array_keys($user->roles));
-
+  $cid = "node:render:$node->nid:$view_mode:" . (int) empty($user->uid);
   return $cid;
+}
+
+/**
+ * Determine if a node render is cacheable.
+ *
+ * @param $node
+ *   The node object.
+ *
+ * @param $allow_caching
+ *   Set to FALSE to ensure the node render is not cached.
+ *
+ * @return
+ *   Boolean indicating whether the node is cacheable or not.
+ */
+function performance_hacks_node_render_is_cacheable($node, $allow_caching = NULL) {
+  $allow_caching_static = &drupal_static(__FUNCTION__, TRUE);
+  if (isset($allow_caching)) {
+    $allow_caching_static = $allow_caching;
+  }
+  // Prevent caching if:
+  // - there are any additional $_GET parameters.
+  // - the user has access to edit or delete the node.
+  $get = drupal_get_query_parameters();
+  return $allow_caching_static && empty($get) && !node_access($node, 'update') && !node_access($node, 'delete');
+}
+
+/**
+ * Determine all possible cache keys for a node.
+ */
+function performance_hacks_clear_node_render_cache($nid) {
+  $keys = array();
+  $entity_info = entity_get_info();
+  $view_modes = array_keys($info['node']['view modes']);
+
+  // Create a cache key for each view mode, and for whether the user is
+  // authenticated or not.
+  foreach ($view_modes as $mode) {
+    foreach (array(0, 1) as $auth) {
+      $keys[] = "node:render:$nid:$mode:$auth";
+    }
+  }
+  cache_clear_all($keys, 'cache_performance_hacks');
 }
 
 /**
