@@ -144,7 +144,7 @@ function performance_hacks_replace_node_view($node, $view_mode = 'full') {
     '#view_mode' => $view_mode,
     '#pre_render' => array('_performance_hacks_node_build_content'),
   );
-  if (performance_hacks_node_render_is_cacheable($node)) {
+  if (performance_hacks_node_render_is_cacheable(NULL, $node)) {
     $build['#cache'] = array(
       'cid' => $cid,
       'bin' => 'cache_performance_hacks',
@@ -183,16 +183,15 @@ function _performance_hacks_node_render_cache_key($node, $view_mode) {
 /**
  * Determine if a node render is cacheable.
  *
- * @param $node
- *   The node object.
- *
  * @param $allow_caching
  *   Set to FALSE to ensure the node render is not cached.
+ * @param $node
+ *   The node object.
  *
  * @return
  *   Boolean indicating whether the node is cacheable or not.
  */
-function performance_hacks_node_render_is_cacheable($node, $allow_caching = NULL) {
+function performance_hacks_node_render_is_cacheable($allow_caching = NULL, $node = NULL) {
   $allow_caching_static = &drupal_static(__FUNCTION__, TRUE);
   if (isset($allow_caching)) {
     $allow_caching_static = $allow_caching;
