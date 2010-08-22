@@ -294,7 +294,7 @@ function performance_hacks_replace_node_feed($nids = FALSE, $channel = array()) 
 
   // Allow page caching of RSS feeds to be set differently from  regular pages.
   if (variable_get('performance_hacks_rss_cache_lifetime', NULL) !== NULL) {
-    $GLOBALS['conf']['cache_)ifetime'] = variable_get('performance_hacks_rss_cache_lifetime');
+    $GLOBALS['conf']['page_cache_maximum_age'] = variable_get('performance_hacks_rss_cache_maximum_age');
   }
 
   if ($nids === FALSE) {
