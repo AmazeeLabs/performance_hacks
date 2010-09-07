@@ -226,7 +226,7 @@ function performance_hacks_clear_node_render_cache($nid) {
  */
 function _performance_hacks_node_build_content($element) {
   // To avoid rewriting the whole function, assign $node and
-  // $view_mode, the $node will be passed by resource so no need
+  // $view_mode, the $node will be passed by reference so no need
   // to stuff it back at the end.
   $node = $element['#node'];
   $view_mode = $element['#view_mode'];
@@ -484,97 +484,10 @@ function performance_hacks_replace_menu_tree_page_data($menu_name, $max_depth = 
       );
       // Build the tree using the parameters; the resulting tree will be cached
       // by _menu_build_tree().
-      $tree[$cid] = ex_menu_build_tree($menu_name, $tree_parameters);
+      $tree[$cid] = menu_build_tree($menu_name, $tree_parameters);
     }
     return $tree[$cid];
   }
 
   return array();
-}
-
-/**
- * @todo REMOVE AFTER CORE MERGE.
- */
-function _ex_menu_build_tree($menu_name, array $parameters = array()) {
-  // Static cache of already built menu trees.
-  $trees = &drupal_static(__FUNCTION__, array());
-
-  // Build the cache id; sort parents to prevent duplicate storage and remove
-  // default parameter values.
-  if (isset($parameters['expanded'])) {
-    sort($parameters['expanded']);
-  }
-  $tree_cid = 'links:' . $menu_name . ':tree-data:' . $GLOBALS['language']->language . ':' . hash('sha256', serialize($parameters));
-
-  // If we do not have this tree in the static cache, check {cache_menu}.
-  if (!isset($trees[$tree_cid])) {
-    $cache = cache_get($tree_cid, 'cache_menu');
-    if ($cache && isset($cache->data)) {
-      $trees[$tree_cid] = $cache->data;
-    }
-  }
-
-  if (!isset($trees[$tree_cid])) {
-    // Select the links from the table, and recursively build the tree. We
-    // LEFT JOIN since there is no match in {menu_router} for an external
-    // link.
-    $query = db_select('menu_links', 'ml', array('fetch' => PDO::FETCH_ASSOC));
-    $query->addTag('translatable');
-    $query->leftJoin('menu_router', 'm', 'm.path = ml.router_path');
-    $query->fields('ml');
-    $query->fields('m', array(
-      'load_functions',
-      'to_arg_functions',
-      'access_callback',
-      'access_arguments',
-      'page_callback',
-      'page_arguments',
-      'delivery_callback',
-      'title',
-      'title_callback',
-      'title_arguments',
-      'theme_callback',
-      'theme_arguments',
-      'type',
-      'description',
-    ));
-    for ($i = 1; $i <= MENU_MAX_DEPTH; $i++) {
-      $query->orderBy('p' . $i, 'ASC');
-    }
-    $query->condition('ml.menu_name', $menu_name);
-    if (!empty($parameters['expanded'])) {
-      $query->condition('ml.plid', $parameters['expanded'], 'IN');
-    }
-    $min_depth = (isset($parameters['min_depth']) ? $parameters['min_depth'] : 1);
-    if ($min_depth != 1) {
-      $query->condition('ml.depth', $min_depth, '>=');
-    }
-    if (isset($parameters['max_depth'])) {
-      $query->condition('ml.depth', $parameters['max_depth'], '<=');
-    }
-
-    // Build an ordered array of links using the query result object.
-    $links = array();
-    foreach ($query->execute() as $item) {
-      $links[] = $item;
-    }
-    $active_link = (isset($parameters['active_trail']) ? $parameters['active_trail'] : array());
-    $data['tree'] = menu_tree_data($links, $active_link, $min_depth);
-    $data['node_links'] = array();
-    menu_tree_collect_node_links($data['tree'], $data['node_links']);
-
-    // Cache the data, if it is not already in the cache.
-    cache_set($tree_cid, $data, 'cache_menu');
-    $trees[$tree_cid] = $data;
-  }
-
-  return $trees[$tree_cid];
-}
-
-function ex_menu_build_tree($menu_name, array $parameters = array()) {
-  // Build the menu tree.
-  $data = _ex_menu_build_tree($menu_name, $parameters);
-  // Check access for the current user to each item in the tree.
-  menu_tree_check_access($data['tree'], $data['node_links']);
-  return $data['tree'];
 }
