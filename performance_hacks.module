@@ -217,7 +217,7 @@ function performance_hacks_node_render_is_cacheable($allow_caching = NULL, $node
   // - there are any additional $_GET parameters.
   // - the user has access to edit or delete the node.
   $get = drupal_get_query_parameters();
-  return $allow_caching_static && empty($GLOBALS['user']->uid) && empty($get) && !node_access($node, 'update') && !node_access($node, 'delete');
+  return $allow_caching_static && empty($get) && !node_access($node, 'update') && !node_access($node, 'delete');
 }
 
 /**
