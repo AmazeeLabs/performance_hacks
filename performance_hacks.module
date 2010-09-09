@@ -42,6 +42,20 @@ function performance_hacks_module_implements_alter(&$implementations, $hook) {
 }
 
 /**
+ * Implementation of hook_page_alter().
+ */
+function performance_hacks_page_alter(&$page) {
+  // Put back the comment form we removed from the node content.
+  // Using the same check as comment.module for consistency, except for view_mode
+  // which isn't available.
+  if (($node = menu_get_object()) && $node->comment && node_is_page($node) && empty($node->in_preview) && user_access('access comments')) {
+    if (user_access('post comments') && $node->comment == COMMENT_NODE_OPEN && isset($GLOBALS['conf']['performance_hacks_comment_setting']) && $GLOBALS['conf']['performance_hacks_comment_setting'] == COMMENT_FORM_BELOW) {
+      $page['content']['system_main']['comment_form'] = drupal_get_form('comment_form', (object) array('nid' => $node->nid));
+    }
+  }
+}
+
+/**
  * Implements hook_node_update().
  */
 function performance_hacks_node_update($node) {
@@ -138,6 +152,9 @@ function performance_hacks_replace_node_view($node, $view_mode = 'full') {
   // gradually. Custom settings per view mode can be put in $conf.
   $expire = variable_get('node_cache_' . $view_mode . '_expire', 86400 * 3);
 
+  // @todo: figure out a way for comment.module to not make this such a pain.
+  _performance_hacks_why_do_i_maintain_comment_module_again($node);
+
   $build = array(
     '#theme' => 'node',
     '#node' => $node,
@@ -219,6 +236,18 @@ function performance_hacks_clear_node_render_cache($nid) {
     }
   }
   cache_clear_all($keys, 'cache_performance_hacks');
+}
+
+/**
+ * Prevent comment module from putting the comment form into $node->content.
+ */
+function _performance_hacks_why_do_i_maintain_comment_module_again($node) {
+  // Special handling for the comment form. comment_node_page_additions() puts
+  // this into the node content, yet this form contains user-specific information
+  // which means we'd have to do per-user caching for authenticated users. Instead
+  // record the setting which controls display of the form here
+  $GLOBALS['conf']['performance_hacks_comment_setting'] = variable_get('comment_form_location_' . $node->type, COMMENT_FORM_BELOW);
+  $GLOBALS['conf']['comment_form_location_' . $node->type] = COMMENT_FORM_SEPARATE_PAGE;
 }
 
 /**
@@ -458,6 +487,7 @@ function performance_hacks_replace_menu_navigation_links($menu_name, $level = 0)
   }
   return $links;
 }
+
 /**
  * Replacement for menu_tree_page_data().
  *
