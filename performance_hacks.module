@@ -42,6 +42,118 @@ function performance_hacks_module_implements_alter(&$implementations, $hook) {
 }
 
 /**
+ * Implements hook_form_alter().
+ */
+function performance_hacks_form_alter(&$form, $form_state, $form_id) {
+  if (!empty($form['#node_edit_form'])) {
+    $node_form_submit = array_search('node_form_submit', $form['actions']['submit']['#submit']);
+    $form['actions']['submit']['#submit'][$node_form_submit] = 'performance_hacks_node_form_submit';
+  }
+}
+
+/**
+ * Implements hook_form_FORM_ID_alter().
+ */
+function performance_hacks_form_comment_form_alter(&$form, $form_state) {
+  $comment_form_submit = array_search('comment_form_submit', $form['#submit']);
+  $form['#submit'][$comment_form_submit] = 'performance_hacks_comment_form_submit';
+}
+
+/**
+ * Exact copy of node_form_submit, except for cache clearing.
+ */
+function performance_hacks_node_form_submit($form, &$form_state) {
+  $node = $form['#builder_function']($form, $form_state);
+  $insert = empty($node->nid);
+  node_save($node);
+  $node_link = l(t('view'), 'node/' . $node->nid);
+  $watchdog_args = array('@type' => $node->type, '%title' => $node->title);
+  $t_args = array('@type' => node_type_get_name($node), '%title' => $node->title);
+
+  if ($insert) {
+    watchdog('content', '@type: added %title.', $watchdog_args, WATCHDOG_NOTICE, $node_link);
+    drupal_set_message(t('@type %title has been created.', $t_args));
+  }
+  else {
+    watchdog('content', '@type: updated %title.', $watchdog_args, WATCHDOG_NOTICE, $node_link);
+    drupal_set_message(t('@type %title has been updated.', $t_args));
+  }
+  if ($node->nid) {
+    $form_state['values']['nid'] = $node->nid;
+    $form_state['nid'] = $node->nid;
+    $form_state['redirect'] = 'node/' . $node->nid;
+  }
+  else {
+    // In the unlikely case something went wrong on save, the node will be
+    // rebuilt and node form redisplayed the same way as in preview.
+    drupal_set_message(t('The post could not be saved.'), 'error');
+    $form_state['rebuild'] = TRUE;
+  }
+  // Only change from Drupal core - try to keep this updated.
+  // Clear the page and block caches.
+  //cache_clear_all();
+}
+
+/**
+ * Exact copy of comment_form_submit() except for cache clearing.
+ */
+function performance_hacks_comment_form_submit($form, &$form_state) {
+  $node = node_load($form_state['values']['nid']);
+  $comment = $form['#builder_function']($form, $form_state);
+  if (user_access('post comments') && (user_access('administer comments') || $node->comment == COMMENT_NODE_OPEN)) {
+    // Save the anonymous user information to a cookie for reuse.
+    if (!$comment->uid) {
+      user_cookie_save(array_intersect_key($form_state['values'], array_flip(array('name', 'mail', 'homepage'))));
+    }
+
+    comment_save($comment);
+    $form_state['values']['cid'] = $comment->cid;
+
+    // Add an entry to the watchdog log.
+    watchdog('content', 'Comment posted: %subject.', array('%subject' => $comment->subject), WATCHDOG_NOTICE, l(t('view'), 'comment/' . $comment->cid, array('fragment' => 'comment-' . $comment->cid)));
+
+    // Explain the approval queue if necessary.
+    if ($comment->status == COMMENT_NOT_PUBLISHED) {
+      if (!user_access('administer comments')) {
+        drupal_set_message(t('Your comment has been queued for review by site administrators and will be published after approval.'));
+      }
+    }
+    else {
+      drupal_set_message(t('Your comment has been posted.'));
+    }
+    $query = array();
+    // Find the current display page for this comment.
+    $page = comment_get_display_page($comment->cid, $node->type);
+    if ($page > 0) {
+      $query['page'] = $page;
+    }
+    // Redirect to the newly posted comment.
+    $redirect = array('node/' . $node->nid, array('query' => $query, 'fragment' => 'comment-' . $comment->cid));
+  }
+  else {
+    watchdog('content', 'Comment: unauthorized comment submitted or comment submitted to a closed post %subject.', array('%subject' => $comment->subject), WATCHDOG_WARNING);
+    drupal_set_message(t('Comment: unauthorized comment submitted or comment submitted to a closed post %subject.', array('%subject' => $comment->subject)), 'error');
+    // Redirect the user to the node they are commenting on.
+    $redirect = 'node/' . $node->nid;
+  }
+  $form_state['redirect'] = $redirect;
+  // Clear the block and page caches so that anonymous users see the comment
+  // they have posted.
+  //cache_clear_all();
+}
+
+
+
+
+/**
+ * Clear the page cache for a node/n path.
+ */
+function performance_hacks_clear_page_cache($nid) {
+  $cid = $GLOBALS['base_root'] . drupal_get_path_alias("node/$nid");
+  cache_clear_all($cid, 'cache_page');
+}
+
+/**
  * Implementation of hook_page_alter().
  */
 function performance_hacks_page_alter(&$page) {
@@ -219,7 +331,6 @@ function performance_hacks_node_render_is_cacheable($allow_caching = NULL, $node
   $get = drupal_get_query_parameters();
   return $allow_caching_static && empty($get) && !node_access($node, 'update') && !node_access($node, 'delete');
 }
-
 /**
  * Determine all possible cache keys for a node.
  */
@@ -236,6 +347,9 @@ function performance_hacks_clear_node_render_cache($nid) {
     }
   }
   cache_clear_all($keys, 'cache_performance_hacks');
+
+  // Also clear the page cache for 'node/nid'.
+  performance_hacks_clear_page_cache($nid);
 }
 
 /**
