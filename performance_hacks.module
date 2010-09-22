@@ -47,7 +47,9 @@ function performance_hacks_module_implements_alter(&$implementations, $hook) {
 function performance_hacks_form_alter(&$form, $form_state, $form_id) {
   if (!empty($form['#node_edit_form'])) {
     $node_form_submit = array_search('node_form_submit', $form['actions']['submit']['#submit']);
-    $form['actions']['submit']['#submit'][$node_form_submit] = 'performance_hacks_node_form_submit';
+    if ($node_form_submit !== FALSE) {
+      $form['actions']['submit']['#submit'][$node_form_submit] = 'performance_hacks_node_form_submit';
+    }
   }
 }
 
@@ -56,7 +58,9 @@ function performance_hacks_form_alter(&$form, $form_state, $form_id) {
  */
 function performance_hacks_form_comment_form_alter(&$form, $form_state) {
   $comment_form_submit = array_search('comment_form_submit', $form['#submit']);
-  $form['#submit'][$comment_form_submit] = 'performance_hacks_comment_form_submit';
+  if ($comment_form_submit !== FALSE) {
+    $form['#submit'][$comment_form_submit] = 'performance_hacks_comment_form_submit';
+  }
 }
 
 /**
