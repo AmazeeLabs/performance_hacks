@@ -480,7 +480,7 @@ function performance_hacks_replace_node_feed($nids = FALSE, $channel = array()) 
     unset($build['#theme']);
     // @todo: the rss elements here don't get processed by drupal_render(), so
     // if hook_node_view doesn't run, then changes to rss_elements will not
-    //  happen on cache misses. May need to run hook_node_view() here ourselves
+    // happen on cache misses. May need to run hook_node_view() here ourselves
     // or similar. For now disable render caching for RSS feeds across the board.
     // One option may be to cache the entire built RSS item instead of render
     // caching.
