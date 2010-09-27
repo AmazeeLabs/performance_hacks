@@ -332,7 +332,13 @@ function performance_hacks_node_render_is_cacheable($allow_caching = NULL, $node
   // Prevent caching if:
   // - there are any additional $_GET parameters.
   // - the user has access to edit or delete the node.
+  // If the only $_GET parameter is XDEBUG_PROFILE unset it so that caching is
+  // taken into account during profiling.
   $get = drupal_get_query_parameters();
+
+  if (isset($get['XDEBUG_PROFILE'])) {
+    unset($get['XDEBUG_PROFILE']);
+  }
   return $allow_caching_static && empty($get) && !node_access($node, 'update') && !node_access($node, 'delete');
 }
 /**
