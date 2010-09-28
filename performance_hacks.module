@@ -328,6 +328,7 @@ function performance_hacks_node_render_is_cacheable($allow_caching = NULL, $node
   $allow_caching_static = &drupal_static(__FUNCTION__, TRUE);
   if (isset($allow_caching)) {
     $allow_caching_static = $allow_caching;
+    return $allow_caching;
   }
   // Prevent caching if:
   // - there are any additional $_GET parameters.
@@ -444,11 +445,6 @@ function _performance_hacks_node_build_content($element) {
 function performance_hacks_replace_node_feed($nids = FALSE, $channel = array()) {
   global $base_url, $language;
 
-  // Allow page caching of RSS feeds to be set differently from  regular pages.
-  if (variable_get('performance_hacks_rss_cache_lifetime', NULL) !== NULL) {
-    $GLOBALS['conf']['page_cache_maximum_age'] = variable_get('performance_hacks_rss_cache_maximum_age');
-  }
-
   if ($nids === FALSE) {
     $nids = db_select('node', 'n')
       ->fields('n', array('nid', 'created'))
@@ -469,40 +465,47 @@ function performance_hacks_replace_node_feed($nids = FALSE, $channel = array()) 
   $nodes = node_load_multiple($nids);
   $items = '';
   foreach ($nodes as $node) {
-    $item_text = '';
-
-    $node->link = url("node/$node->nid", array('absolute' => TRUE));
-    $node->rss_namespaces = array();
-    $node->rss_elements = array(
-      array('key' => 'pubDate', 'value' => gmdate('r', $node->created)),
-      array('key' => 'dc:creator', 'value' => $node->name),
-      array('key' => 'guid', 'value' => $node->nid . ' at ' . $base_url, 'attributes' => array('isPermaLink' => 'false'))
-    );
-
-    // The node gets built and modules add to or modify $node->rss_elements
-    // and $node->rss_namespaces.
-    // Only change from core node_feed().
-    $build = performance_hacks_replace_node_view($node, 'rss');
-    unset($build['#theme']);
-    // @todo: the rss elements here don't get processed by drupal_render(), so
-    // if hook_node_view doesn't run, then changes to rss_elements will not
-    // happen on cache misses. May need to run hook_node_view() here ourselves
-    // or similar. For now disable render caching for RSS feeds across the board.
-    // One option may be to cache the entire built RSS item instead of render
-    // caching.
-    performance_hacks_node_render_is_cacheable(FALSE);
-
-    if (!empty($node->rss_namespaces)) {
-      $namespaces = array_merge($namespaces, $node->rss_namespaces);
+    // Implement our own caching here instead of using drupal_render() caching
+    // since node_feed() brokenly does additional processing of the node
+    // returned by node_view() after rendering it, and relies on all view hooks
+    // firing on every request.
+    $cid = _performance_hacks_node_render_cache_key($node, 'rss');
+    if (performance_hacks_node_render_is_cacheable(NULL, $node) && $cached = cache_get($cid, 'cache_performance_hacks')) {
+      $items .= $cached->data;
     }
+    else {
+      $item_text = '';
 
-    if ($item_length != 'title') {
-      // We render node contents and force links to be last.
-      $build['links']['#weight'] = 1000;
-      $item_text .= drupal_render($build);
+      $node->link = url("node/$node->nid", array('absolute' => TRUE));
+      $node->rss_namespaces = array();
+      $node->rss_elements = array(
+        array('key' => 'pubDate', 'value' => gmdate('r', $node->created)),
+        array('key' => 'dc:creator', 'value' => $node->name),
+        array('key' => 'guid', 'value' => $node->nid . ' at ' . $base_url, 'attributes' => array('isPermaLink' => 'false'))
+      );
+
+      // The node gets built and modules add to or modify $node->rss_elements
+      // and $node->rss_namespaces.
+      $build = node_view($node, 'rss');
+      unset($build['#theme']);
+
+      if (!empty($node->rss_namespaces)) {
+        $namespaces = array_merge($namespaces, $node->rss_namespaces);
+      }
+
+      if ($item_length != 'title') {
+        // We render node contents and force links to be last.
+        $build['links']['#weight'] = 1000;
+        $item_text .= drupal_render($build);
+      }
+
+      $item = format_rss_item($node->title, $node->link, $item_text, $node->rss_elements);
+      // Allow modules to disable node render caching during node_view().
+      if (performance_hacks_node_render_is_cachable(NULL, $node)) {
+        cache_set($cid, $item, 'cache_performance_hacks');
+      }
+      $items .= $item;
     }
-
-    $items .= format_rss_item($node->title, $node->link, $item_text, $node->rss_elements);
   }
 
   $channel_defaults = array(
