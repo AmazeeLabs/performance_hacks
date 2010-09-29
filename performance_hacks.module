@@ -501,7 +501,7 @@ function performance_hacks_replace_node_feed($nids = FALSE, $channel = array()) 
 
       $item = format_rss_item($node->title, $node->link, $item_text, $node->rss_elements);
       // Allow modules to disable node render caching during node_view().
-      if (performance_hacks_node_render_is_cachable(NULL, $node)) {
+      if (performance_hacks_node_render_is_cacheable(NULL, $node)) {
         cache_set($cid, $item, 'cache_performance_hacks');
       }
       $items .= $item;
