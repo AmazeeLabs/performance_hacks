@@ -67,7 +67,7 @@ function performance_hacks_form_comment_form_alter(&$form, $form_state) {
  * Exact copy of node_form_submit, except for cache clearing.
  */
 function performance_hacks_node_form_submit($form, &$form_state) {
-  $node = $form['#builder_function']($form, $form_state);
+  $node = node_form_submit_build_node($form, $form_state);
   $insert = empty($node->nid);
   node_save($node);
   $node_link = l(t('view'), 'node/' . $node->nid);
@@ -103,7 +103,7 @@ function performance_hacks_node_form_submit($form, &$form_state) {
  */
 function performance_hacks_comment_form_submit($form, &$form_state) {
   $node = node_load($form_state['values']['nid']);
-  $comment = $form['#builder_function']($form, $form_state);
+  $comment = comment_form_submit_build_comment($form, $form_state);
   if (user_access('post comments') && (user_access('administer comments') || $node->comment == COMMENT_NODE_OPEN)) {
     // Save the anonymous user information to a cookie for reuse.
     if (!$comment->uid) {
