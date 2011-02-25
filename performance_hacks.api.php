@@ -1,5 +1,4 @@
 <?php
-// $Id$
 /**
  * @file
  * API documentation for performance hacks.
