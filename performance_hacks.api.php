@@ -18,8 +18,8 @@
 function hook_performance_hacks_custom_cache_key($node, $view_mode) {
   if ($view_mode == 'full') {
     // Some custom code themes the node different depending on a $_GET param.
-    if isset($_GET['foo']) {
-      return $_GET['foo']);
+    if (isset($_GET['foo'])) {
+      return $_GET['foo'];
     }
   }
 } 
