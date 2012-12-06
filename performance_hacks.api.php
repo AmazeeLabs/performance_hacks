@@ -23,3 +23,24 @@ function hook_performance_hacks_custom_cache_key($node, $view_mode) {
     }
   }
 } 
+
+/**
+ * Allow for custom elements to be appended to the cache key.
+ *
+ * @param $keys
+ *   Array cache keys to be cleared.
+ * @param $nid
+ *   Integer node id.
+ */
+function hook_performance_hacks_custom_cache_keys_alter(&$keys, $nid) {
+  $themes = array_keys(list_themes());
+
+  $new_keys = array();
+  foreach ($themes as $theme) {
+    foreach ($keys as $key) {
+      $new_keys[] = $key . ":$theme";
+    }
+  }
+
+  $key = $new_keys;
+}

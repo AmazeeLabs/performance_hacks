@@ -306,10 +306,17 @@ function performance_hacks_replace_node_view($node, $view_mode = 'full') {
  *   A string to use as the cache key.
  */
 function _performance_hacks_node_render_cache_key($node, $view_mode) {
-  global $user;
+  $cid = array(
+    'node',
+    'render',
+    $node->nid,
+    $view_mode,
+    (int) empty($GLOBALS['user']->uid),
+  );
 
-  $cid = "node:render:$node->nid:$view_mode:" . (int) empty($user->uid);
-  return $cid;
+  $cid = array_merge($cid, module_invoke_all('performance_hacks_custom_cache_key', $node, $view_mode));
+
+  return implode(':', $cid);
 }
 
 /**
@@ -356,6 +363,10 @@ function performance_hacks_clear_node_render_cache($nid) {
       $keys[] = "node:render:$nid:$mode:$auth";
     }
   }
+
+  // Allow custom cache keys to be cleared.
+  drupal_alter('performance_hacks_custom_cache_keys', $keys, $nid);
+
   cache_clear_all($keys, 'cache_performance_hacks');
 
   // Also clear the page cache for 'node/nid'.
