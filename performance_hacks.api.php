@@ -44,3 +44,19 @@ function hook_performance_hacks_custom_cache_keys_alter(&$keys, $nid) {
 
   $key = $new_keys;
 }
+
+/**
+ * Allow static $_GET values to be removed when caching an item.
+ *
+ * By default the presence of a $_GET value results in an item not entering the
+ * render cache however some $_GET values can be 'static' and have no effect on
+ * what is being rendered.
+ *
+ * @param $get
+ *   Array of get parameters.
+ */
+function hook_performance_hacks_cache_get_alter(&$get) {
+  if (isset($get['XDEBUG_PROFILE'])) {
+    unset($get['XDEBUG_PROFILE']);
+  }
+}
