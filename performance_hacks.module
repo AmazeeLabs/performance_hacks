@@ -10,13 +10,13 @@
  */
 function performance_hacks_menu_alter(&$items) {
   // Use a custom callback for node/% to bypass node_tag_new().
-  $items['node/%node']['page callback'] = 'performance_hacks_node_show';
+  //$items['node/%node']['page callback'] = 'performance_hacks_node_show';
 
   // Replace _node_revision_access() with a callback that doesn't do a COUNT()
   // query on the node table. Will show revisions tab to all users with access
   // even if there's only one revision.
   // @see http://drupal.org/node/808739
-  $items['node/%node/revisions']['access callback'] = '_performance_hacks_node_revision_access';
+  //$items['node/%node/revisions']['access callback'] = '_performance_hacks_node_revision_access';
 }
 
 /**
