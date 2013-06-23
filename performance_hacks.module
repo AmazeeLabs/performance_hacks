@@ -252,6 +252,13 @@ function performance_hacks_node_view_multiple($nodes, $view_mode = 'teaser', $we
   return $build;
 }
 
+function performance_hacks_entity_metadata_view_node($entities, $view_mode = 'full', $langcode = NULL) {
+  $result = performance_hacks_node_view_multiple($entities, $view_mode, 0, $langcode);
+  // Make sure to key the result with 'node' instead of 'nodes'.
+  return array('node' => reset($result));
+}
+
+
 /**
  * Generate an array for rendering the given node.
  *
@@ -292,6 +299,10 @@ function performance_hacks_replace_node_view($node, $view_mode = 'full') {
   if (!node_is_page($node)) {
     $build['#contextual_links']['node'] = array('node', array($node->nid));
   }
+
+  // Allow modules to modify the structured node.
+  $type = 'node';
+  drupal_alter(array('node_view', 'entity_view'), $build, $type);
 
   return $build;
 }
@@ -341,7 +352,8 @@ function performance_hacks_node_render_is_cacheable($allow_caching = NULL, $node
   // Prevent caching if:
   // - there are any additional $_GET parameters.
   // - the user has access to edit or delete the node.
-  $get = drupal_get_query_parameters();
+  //$get = drupal_get_query_parameters();
+  $get = NULL;
 
   // Allow sites to exclude specific $_GET parameters.
   drupal_alter('performance_hacks_cache_get', $get);
