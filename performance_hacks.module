@@ -258,8 +258,11 @@ function performance_hacks_entity_metadata_view_node($entities, $view_mode = 'fu
  *
  * Replacement for node_view() which does drupal_render() caching.
  */
-function performance_hacks_replace_node_view($node, $view_mode = 'full') {
-  $cid = _performance_hacks_node_render_cache_key($node, $view_mode);
+function performance_hacks_replace_node_view($node, $view_mode = 'full', $langcode = NULL) {
+  if (!isset($langcode)) {
+    $langcode = $GLOBALS['language_content']->language;
+  }
+  $cid = _performance_hacks_node_render_cache_key($node, $view_mode, $langcode);
 
   // Cache for a maximum of three days, updates to users, taxonomy terms,
   // theming, or other things which affect the rendered node output without
@@ -277,6 +280,7 @@ function performance_hacks_replace_node_view($node, $view_mode = 'full') {
     '#theme' => 'node',
     '#node' => $node,
     '#view_mode' => $view_mode,
+    '#langcode' => $langcode,
     '#pre_render' => array('_performance_hacks_node_build_content'),
   );
   if (performance_hacks_node_render_is_cacheable(NULL, $node)) {
@@ -312,12 +316,13 @@ function performance_hacks_replace_node_view($node, $view_mode = 'full') {
  * @return
  *   A string to use as the cache key.
  */
-function _performance_hacks_node_render_cache_key($node, $view_mode) {
+function _performance_hacks_node_render_cache_key($node, $view_mode, $langcode) {
   $cid = array(
     'node',
     'render',
     $node->nid,
     $view_mode,
+    $langcode,
     (int) empty($GLOBALS['user']->uid),
   );
 
@@ -394,6 +399,9 @@ function _performance_hacks_why_do_i_maintain_comment_module_again($node) {
  * Replacement for node_build_content() for pre_render().
  */
 function _performance_hacks_node_build_content($element) {
+  if (!isset($element['#langcode'])) {
+    $langcode = $GLOBALS['language_content']->language;
+  }
   // To avoid rewriting the whole function, assign $node and
   // $view_mode, the $node will be passed by reference so no need
   // to stuff it back at the end.
@@ -405,16 +413,16 @@ function _performance_hacks_node_build_content($element) {
   // The 'view' hook can be implemented to overwrite the default function
   // to display nodes.
   if (node_hook($node, 'view')) {
-    $node = node_invoke($node, 'view', $view_mode);
+    $node = node_invoke($node, 'view', $view_mode, $langcode);
   }
 
   // Build fields content.
   // In case of a multiple view, node_view_multiple() already ran the
   // 'prepare_view' step. An internal flag prevents the operation from running
   // twice.
-  field_attach_prepare_view('node', array($node->nid => $node), $view_mode);
-  entity_prepare_view('node', array($node->nid => $node));
-  $node->content += field_attach_view('node', $node, $view_mode);
+  field_attach_prepare_view('node', array($node->nid => $node), $view_mode, $langcode);
+  entity_prepare_view('node', array($node->nid => $node), $langcode);
+  $node->content += field_attach_view('node', $node, $view_mode, $langcode);
 
   // Always display a read more link on teasers because we have no way
   // to know when a teaser view is different than a full view.
@@ -440,7 +448,7 @@ function _performance_hacks_node_build_content($element) {
   );
 
   // Allow modules to make their own additions to the node.
-  module_invoke_all('node_view', $node, $view_mode);
+  module_invoke_all('node_view', $node, $view_mode, $langcode);
 
   // merge $node->content into $element
   foreach (element_children($node->content) as $child) {
@@ -491,7 +499,7 @@ function performance_hacks_replace_node_feed($nids = FALSE, $channel = array()) 
     // since node_feed() brokenly does additional processing of the node
     // returned by node_view() after rendering it, and relies on all view hooks
     // firing on every request.
-    $cid = _performance_hacks_node_render_cache_key($node, 'rss');
+    $cid = _performance_hacks_node_render_cache_key($node, 'rss', NULL);
     if (performance_hacks_node_render_is_cacheable(NULL, $node) && $cached = cache_get($cid, 'cache_performance_hacks')) {
       $items .= $cached->data;
     }
