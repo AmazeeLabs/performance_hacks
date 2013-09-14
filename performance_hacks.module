@@ -298,10 +298,6 @@ function performance_hacks_replace_node_view($node, $view_mode = 'full', $langco
     $build['#contextual_links']['node'] = array('node', array($node->nid));
   }
 
-  // Allow modules to modify the structured node.
-  $type = 'node';
-  drupal_alter(array('node_view', 'entity_view'), $build, $type);
-
   return $build;
 }
 
@@ -466,7 +462,8 @@ function _performance_hacks_node_build_content($element) {
 
   // Run hook_node_view_alter() here instead of in node_view() because this
   // is the last time you're going to see a renderable array again. mwahaha.
-  drupal_alter('node_view', $element);
+  $type = 'node';
+  drupal_alter(array('node_view', 'entity_view'), $element, $type);
 
   return $element;
 }
