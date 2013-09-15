@@ -232,10 +232,10 @@ function performance_hacks_node_view_multiple($nodes, $view_mode = 'teaser', $we
   // for only one node, we skip them entirely on cached single node views.
   // For multiple views, we assume that popular pages with a high cache hit
   // rate also have frequently updated content anyway.
-  if (count($nodes) > 1) {
+  /*if (count($nodes) > 1) {
     field_attach_prepare_view('node', $nodes, $view_mode);
     entity_prepare_view('node', $nodes);
-  }
+  }*/
   $build = array();
   foreach ($nodes as $node) {
     $build['nodes'][$node->nid] = performance_hacks_replace_node_view($node, $view_mode);
